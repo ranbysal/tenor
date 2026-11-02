@@ -1,0 +1,33 @@
+name: Refresh FRED data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 13 3 * *" # monthly, 3rd day, after month-end averages settle
+  push:
+    branches: [main]
+    paths:
+      - scripts/fetch-yields.mjs
+      - .github/workflows/refresh-data.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/fetch-yields.mjs
+      - name: Commit if changed
+        run: |
+          if [ -n "$(git status --porcelain src/data)" ]; then
+            git config user.name "tenor-data-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add src/data
+            git commit -m "Refresh Treasury yields from FRED"
+            git push
+          fi

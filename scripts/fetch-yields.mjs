@@ -31,9 +31,19 @@ async function series(id) {
   return out;
 }
 
+// Other signals Tenor "watches": equity volatility and high-yield credit spreads.
+const SIGNALS = [
+  ["vix", "VIXCLS"],
+  ["hyOas", "BAMLH0A0HYM2"],
+];
+
 const all = await Promise.all(TENORS.map(([, id]) => series(id)));
 const dates = [...all[TENORS.findIndex(([t]) => t === "10Y")].keys()].sort();
 const values = dates.map((d) => all.map((s) => s.get(d) ?? null));
+const sig = await Promise.all(SIGNALS.map(([, id]) => series(id)));
+const signals = Object.fromEntries(
+  SIGNALS.map(([key], i) => [key, dates.map((d) => sig[i].get(d) ?? null)]),
+);
 
 await mkdir(new URL("../src/data/", import.meta.url), { recursive: true });
 await writeFile(
@@ -45,6 +55,7 @@ await writeFile(
     series: TENORS.map(([, id]) => id),
     dates,
     values,
+    signals,
   }),
 );
 console.log(`wrote ${dates.length} months × ${TENORS.length} tenors (${dates[0]} → ${dates.at(-1)})`);
